@@ -11,9 +11,12 @@ export default defineConfig({
     vue(),
     AutoImport({
       resolvers: [ElementPlusResolver()],
+      imports: ['vue', 'vue-router'],
+      dts: true,
     }),
     Components({
       resolvers: [ElementPlusResolver()],
+      dts: true,
     }),
   ],
   resolve: {

@@ -45,7 +45,7 @@ export const usePcapStore = defineStore('pcap', () => {
       isLoading.value = true
       uploadProgress.value = 0
       
-      const response = await pcapApi.uploadFile(file, (progress) => {
+      const response = await pcapApi.uploadFile(file, (progress: number) => {
         uploadProgress.value = progress
       })
       

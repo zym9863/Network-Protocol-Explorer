@@ -232,7 +232,7 @@ const handleModelChange = () => {
 }
 
 const handleScenarioChange = () => {
-  const scenario = scenarios.value.find(s => s.id === simulationForm.value.scenarioId)
+  const scenario = scenarios.value.find((s: any) => s.id === simulationForm.value.scenarioId)
   if (scenario) {
     protocolStore.setCurrentScenario(scenario)
   }

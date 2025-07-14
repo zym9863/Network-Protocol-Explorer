@@ -336,7 +336,7 @@ const pagination = computed(() => pcapStore.pagination)
 const protocolCounts = computed(() => pcapStore.protocolCounts)
 
 const availableProtocols = computed(() => {
-  const protocols = new Set(packets.value.map(p => p.protocol))
+  const protocols = new Set(packets.value.map((p: any) => p.protocol))
   return Array.from(protocols).sort()
 })
 
