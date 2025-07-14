@@ -151,21 +151,50 @@ const goToPcap = () => {
 .home {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: var(--spacing-lg);
+  position: relative;
+  z-index: 1;
 }
 
 .welcome-banner {
-  margin-bottom: 30px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  margin-bottom: var(--spacing-2xl);
+  background: var(--gradient-primary);
   color: white;
   border: none;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+  border-radius: var(--radius-xl) !important;
+}
+
+.welcome-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  animation: rotate 30s linear infinite;
+}
+
+.welcome-banner::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 100px;
+  background: linear-gradient(to top, rgba(255,255,255,0.1), transparent);
 }
 
 .banner-content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 40px 20px;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  position: relative;
+  z-index: 1;
 }
 
 .banner-text {
@@ -173,24 +202,40 @@ const goToPcap = () => {
 }
 
 .banner-title {
-  font-size: 3rem;
-  font-weight: 700;
-  margin-bottom: 16px;
-  background: linear-gradient(45deg, #fff, #f0f0f0);
+  font-size: 3.5rem;
+  font-weight: 800;
+  margin-bottom: var(--spacing-md);
+  background: linear-gradient(45deg, #fff, rgba(255,255,255,0.9));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 30px rgba(255,255,255,0.5);
+  animation: fadeIn 0.8s ease-out;
 }
 
 .banner-subtitle {
-  font-size: 1.2rem;
-  margin-bottom: 24px;
-  opacity: 0.9;
+  font-size: 1.25rem;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.95;
+  animation: fadeIn 1s ease-out 0.2s both;
+  font-weight: 300;
+  letter-spacing: 0.5px;
 }
 
 .banner-features {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-md);
   flex-wrap: wrap;
+  animation: fadeIn 1.2s ease-out 0.4s both;
+}
+
+.banner-features .el-tag {
+  border-radius: var(--radius-full);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  background: rgba(255,255,255,0.2) !important;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white !important;
 }
 
 .banner-image {
@@ -199,46 +244,80 @@ const goToPcap = () => {
 }
 
 .network-icon {
-  color: rgba(255, 255, 255, 0.8);
-  animation: pulse 2s infinite;
+  color: rgba(255, 255, 255, 0.9);
+  filter: drop-shadow(0 0 20px rgba(255,255,255,0.6));
+  animation: pulse 2s infinite, fadeIn 1s ease-out 0.6s both;
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0%, 100% { 
+    transform: scale(1);
+    filter: drop-shadow(0 0 20px rgba(255,255,255,0.6));
+  }
+  50% { 
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 30px rgba(255,255,255,0.8));
+  }
 }
 
 .feature-cards {
-  margin-bottom: 40px;
+  margin-bottom: var(--spacing-2xl);
 }
 
 .feature-card {
   height: 100%;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all var(--transition-normal);
   border: 2px solid transparent;
+  background: var(--bg-card) !important;
+  border-radius: var(--radius-xl) !important;
+  overflow: hidden;
+  position: relative;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient-primary);
+  transform: translateX(-100%);
+  transition: transform var(--transition-normal);
+}
+
+.feature-card:hover::before {
+  transform: translateX(0);
 }
 
 .feature-card:hover {
-  transform: translateY(-5px);
-  border-color: var(--el-color-primary);
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-xl);
+  border-color: var(--primary-light);
 }
 
 .card-header {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-lg) 0;
+  background: var(--bg-tertiary);
+  margin: calc(-1 * var(--spacing-lg)) calc(-1 * var(--spacing-lg)) var(--spacing-lg);
+  position: relative;
 }
 
 .card-icon {
-  color: var(--el-color-primary);
-  margin-bottom: 12px;
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+  filter: drop-shadow(0 4px 6px rgba(99, 102, 241, 0.2));
+  animation: pulse 3s infinite;
 }
 
 .card-header h3 {
   font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
 }
 
 .card-content {
@@ -267,8 +346,9 @@ const goToPcap = () => {
   content: '✓';
   position: absolute;
   left: 0;
-  color: var(--el-color-success);
+  color: var(--success-color);
   font-weight: bold;
+  font-size: 16px;
 }
 
 .card-footer {
@@ -277,25 +357,56 @@ const goToPcap = () => {
 
 .tech-features,
 .quick-start {
-  margin-bottom: 30px;
+  margin-bottom: var(--spacing-2xl);
+  animation: fadeIn 0.8s ease-out;
 }
 
 .section-title {
   text-align: center;
-  font-size: 2rem;
-  font-weight: 600;
-  margin-bottom: 30px;
-  color: var(--el-text-color-primary);
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-2xl);
+  color: var(--text-primary);
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 4px;
+  background: var(--gradient-primary);
+  border-radius: var(--radius-full);
 }
 
 .tech-item {
   text-align: center;
-  padding: 20px;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-normal);
+  cursor: pointer;
+}
+
+.tech-item:hover {
+  background: var(--bg-tertiary);
+  transform: translateY(-4px);
+}
+
+.tech-item:hover .tech-icon {
+  transform: scale(1.1);
+  filter: drop-shadow(0 6px 12px rgba(99, 102, 241, 0.3));
 }
 
 .tech-icon {
-  color: var(--el-color-primary);
-  margin-bottom: 16px;
+  color: var(--primary-color);
+  margin-bottom: var(--spacing-md);
+  transition: all var(--transition-normal);
+  filter: drop-shadow(0 2px 4px rgba(99, 102, 241, 0.2));
 }
 
 .tech-item h4 {
@@ -312,10 +423,25 @@ const goToPcap = () => {
 
 .start-buttons {
   text-align: center;
-  margin-top: 30px;
+  margin-top: var(--spacing-2xl);
   display: flex;
-  gap: 20px;
+  gap: var(--spacing-lg);
   justify-content: center;
+}
+
+.start-buttons .el-button {
+  padding: var(--spacing-md) var(--spacing-2xl);
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.start-buttons .el-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
 }
 
 /* 响应式设计 */
