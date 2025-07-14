@@ -1,5 +1,7 @@
 # 网络协议探险家 (Network Protocol Explorer)
 
+[English Version | 英文版](./README_EN.md)
+
 一个基于 Express + Vue 的网络协议学习和分析工具，提供 OSI/TCP-IP 模型可视化模拟和 PCAP 文件解析功能。
 
 ## 功能特性
