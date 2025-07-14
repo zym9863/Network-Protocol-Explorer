@@ -9,7 +9,12 @@
     "client:dev": "cd client && pnpm run dev",
     "server:start": "cd server && pnpm start",
     "client:build": "cd client && pnpm run build",
+    "client:preview": "cd client && pnpm run preview",
     "install:all": "pnpm install && cd server && pnpm install && cd ../client && pnpm install",
+    "build:frontend": "bash scripts/build-frontend.sh",
+    "verify:backend": "bash scripts/verify-backend.sh",
+    "deploy:prepare": "pnpm run verify:backend && pnpm run build:frontend",
+    "test:cors": "echo '打开 test/cors-test.html 进行 CORS 测试'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

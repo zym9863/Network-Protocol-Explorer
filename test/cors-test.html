@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS 跨域测试工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 CORS 跨域测试工具</h1>
+        <p>用于测试前后端分离架构的跨域配置是否正确</p>
+        
+        <div class="form-group">
+            <label for="apiUrl">API 服务器地址:</label>
+            <input type="text" id="apiUrl" value="https://network-protocol-explorer.onrender.com" placeholder="输入后端API地址">
+        </div>
+        
+        <div class="form-group">
+            <label for="method">请求方法:</label>
+            <select id="method">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+                <option value="OPTIONS">OPTIONS</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="endpoint">API 端点:</label>
+            <input type="text" id="endpoint" value="/health" placeholder="例如: /api/protocol/layers">
+        </div>
+        
+        <button onclick="testCORS()">🧪 测试 CORS</button>
+        <button onclick="testPreflight()">🔍 测试预检请求</button>
+        <button onclick="clearResults()">🧹 清除结果</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function testCORS() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const method = document.getElementById('method').value;
+            const endpoint = document.getElementById('endpoint').value;
+            const fullUrl = apiUrl + endpoint;
+            
+            showResult('🚀 开始测试 CORS...', 'info');
+            
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    credentials: 'include'
+                };
+                
+                if (method === 'POST' || method === 'PUT') {
+                    options.body = JSON.stringify({ test: true });
+                }
+                
+                const response = await fetch(fullUrl, options);
+                const data = await response.text();
+                
+                let result = `✅ CORS 测试成功!\n`;
+                result += `状态码: ${response.status}\n`;
+                result += `状态文本: ${response.statusText}\n\n`;
+                result += `响应头:\n`;
+                
+                for (const [key, value] of response.headers.entries()) {
+                    result += `${key}: ${value}\n`;
+                }
+                
+                result += `\n响应内容:\n${data}`;
+                
+                showResult(result, 'success');
+                
+            } catch (error) {
+                const result = `❌ CORS 测试失败!\n错误信息: ${error.message}\n\n可能的原因:\n1. 服务器未正确配置 CORS\n2. 请求被阻止\n3. 网络连接问题\n4. 服务器未运行`;
+                showResult(result, 'error');
+            }
+        }
+        
+        async function testPreflight() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const endpoint = document.getElementById('endpoint').value;
+            const fullUrl = apiUrl + endpoint;
+            
+            showResult('🔍 开始测试预检请求...', 'info');
+            
+            try {
+                const response = await fetch(fullUrl, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                let result = `✅ 预检请求测试成功!\n`;
+                result += `状态码: ${response.status}\n`;
+                result += `状态文本: ${response.statusText}\n\n`;
+                result += `CORS 相关响应头:\n`;
+                
+                const corsHeaders = [
+                    'access-control-allow-origin',
+                    'access-control-allow-methods',
+                    'access-control-allow-headers',
+                    'access-control-allow-credentials',
+                    'access-control-max-age'
+                ];
+                
+                corsHeaders.forEach(header => {
+                    const value = response.headers.get(header);
+                    if (value) {
+                        result += `${header}: ${value}\n`;
+                    }
+                });
+                
+                showResult(result, 'success');
+                
+            } catch (error) {
+                const result = `❌ 预检请求测试失败!\n错误信息: ${error.message}`;
+                showResult(result, 'error');
+            }
+        }
+        
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.className = `result ${type}`;
+        }
+        
+        function clearResults() {
+            document.getElementById('result').innerHTML = '';
+        }
+        
+        // 页面加载时显示当前域名信息
+        window.onload = function() {
+            const info = `📍 当前测试环境信息:\n`;
+            const details = `域名: ${window.location.hostname}\n`;
+            const protocol = `协议: ${window.location.protocol}\n`;
+            const port = `端口: ${window.location.port || '默认'}\n`;
+            const origin = `Origin: ${window.location.origin}`;
+            
+            showResult(info + details + protocol + port + origin, 'info');
+        };
+    </script>
+</body>
+</html>

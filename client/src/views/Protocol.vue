@@ -455,6 +455,5 @@ watch(() => simulationForm.value.model, () => {
     gap: 4px;
   }
 }
-/* 导入协议页面样式 */
-@import '../styles/protocol.css';
+/* 协议模拟器页面样式 */
 </style>

@@ -6,6 +6,10 @@ import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import './style.css'
+// 导入页面样式
+import './styles/protocol.css'
+import './styles/pcap.css'
+import './styles/about.css'
 import App from './App.vue'
 
 const app = createApp(App)

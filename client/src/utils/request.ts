@@ -9,10 +9,14 @@ import type { ApiResponse } from '@/types'
 class HttpRequest {
   private instance: AxiosInstance
 
-  constructor(baseURL: string = '/api') {
+  constructor() {
+    // 根据环境变量确定baseURL
+    const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
+    
     this.instance = axios.create({
       baseURL,
       timeout: 30000,
+      withCredentials: true, // 支持跨域携带cookie
       headers: {
         'Content-Type': 'application/json',
       },

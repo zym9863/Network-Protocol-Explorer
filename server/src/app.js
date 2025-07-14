@@ -21,12 +21,50 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 
 // 跨域配置
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['http://localhost:5173', 'http://localhost:4173'] 
-    : true,
-  credentials: true
-}));
+const corsOptions = {
+  origin: function (origin, callback) {
+    // 允许的域名列表
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:4173',
+      'https://network-protocol-explorer.pages.dev',
+      'https://*.pages.dev', // Cloudflare Pages 预览分支
+    ];
+    
+    // 开发环境允许任何来源
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // 生产环境检查来源
+    if (!origin || allowedOrigins.some(allowed => {
+      if (allowed.includes('*')) {
+        const pattern = allowed.replace('*', '.*');
+        return new RegExp(pattern).test(origin);
+      }
+      return allowed === origin;
+    })) {
+      callback(null, true);
+    } else {
+      callback(new Error('不允许的跨域请求来源'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'Cache-Control',
+    'X-File-Name'
+  ],
+  exposedHeaders: ['Content-Disposition'],
+  maxAge: 86400 // 24小时
+};
+
+app.use(cors(corsOptions));
 
 // 请求日志
 app.use(morgan('combined'));
@@ -55,13 +93,30 @@ app.use('/api/', limiter);
 app.use('/api/protocol', protocolRoutes);
 app.use('/api/pcap', pcapRoutes);
 
+// 处理预检请求
+app.options('*', cors(corsOptions));
+
 // 健康检查端点
 app.get('/health', (req, res) => {
-  res.json({
+  const healthCheck = {
     status: 'OK',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    version: '1.0.0',
+    cors: {
+      configured: true,
+      allowedOrigins: process.env.NODE_ENV === 'production' 
+        ? ['https://network-protocol-explorer.pages.dev'] 
+        : ['http://localhost:5173', 'http://localhost:4173']
+    },
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024 * 100) / 100,
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024 * 100) / 100
+    }
+  };
+  
+  res.json(healthCheck);
 });
 
 // 根路径

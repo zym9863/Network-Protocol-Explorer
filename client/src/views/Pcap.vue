@@ -632,6 +632,5 @@ onMounted(() => {
     word-break: break-all;
   }
 }
-/* 导入PCAP页面样式 */
-@import '../styles/pcap.css';
+/* PCAP分析页面样式 */
 </style>

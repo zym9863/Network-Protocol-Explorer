@@ -401,6 +401,5 @@
     align-items: flex-start;
   }
 }
-/* 导入关于页面样式 */
-@import '../styles/about.css';
+/* 关于页面样式 */
 </style>

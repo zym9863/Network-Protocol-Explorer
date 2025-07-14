@@ -26,11 +26,33 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_API_BASE_URL || 'http://localhost:3000',
         changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
       },
     },
+  },
+  preview: {
+    port: 4173,
+    host: '0.0.0.0',
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['vue', 'vue-router', 'pinia'],
+          'element-plus': ['element-plus'],
+          echarts: ['echarts', 'vue-echarts']
+        }
+      }
+    }
   },
 })
