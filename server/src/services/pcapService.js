@@ -94,7 +94,7 @@ class PcapService {
   }
 
   /**
-   * 解析数据包（简化实现）
+   * 解析数据包（实际实现）
    */
   parsePackets(buffer) {
     const packets = [];
@@ -104,17 +104,277 @@ class PcapService {
     let offset = 24; // PCAP文件头大小
     let packetIndex = 0;
 
-    // 模拟解析过程，生成示例数据包
-    // 实际实现需要根据PCAP格式规范进行解析
-    const packetCount = Math.min(100, Math.floor(buffer.length / 100)); // 限制数据包数量
-    
-    for (let i = 0; i < packetCount; i++) {
-      const packet = this.generateSamplePacket(packetIndex++, offset);
-      packets.push(packet);
-      offset += packet.capturedLength + 16; // 数据包头 + 数据
+    // 实际解析PCAP数据包
+    while (offset + 16 <= buffer.length) {
+      try {
+        // 读取数据包头
+        const tsSeconds = buffer.readUInt32LE(offset);
+        const tsMicros = buffer.readUInt32LE(offset + 4);
+        const capturedLength = buffer.readUInt32LE(offset + 8);
+        const originalLength = buffer.readUInt32LE(offset + 12);
+        
+        // 检查数据包长度是否合理
+        if (capturedLength > 65535 || offset + 16 + capturedLength > buffer.length) {
+          break;
+        }
+        
+        // 解析数据包内容
+        const packetData = buffer.slice(offset + 16, offset + 16 + capturedLength);
+        const packet = this.parsePacketData(packetIndex++, tsSeconds, tsMicros, capturedLength, originalLength, packetData);
+        
+        packets.push(packet);
+        offset += 16 + capturedLength;
+        
+      } catch (error) {
+        console.warn(`解析数据包 ${packetIndex} 时出错:`, error.message);
+        break;
+      }
     }
 
     return packets;
+  }
+
+  /**
+   * 解析单个数据包的内容
+   */
+  parsePacketData(index, tsSeconds, tsMicros, capturedLength, originalLength, data) {
+    const packet = {
+      id: index,
+      timestamp: new Date(tsSeconds * 1000 + Math.floor(tsMicros / 1000)).toISOString(),
+      timestampMicros: `${tsSeconds}.${tsMicros.toString().padStart(6, '0')}`,
+      capturedLength,
+      originalLength,
+      length: capturedLength,  // 添加这个字段
+      protocols: [],
+      layers: [],
+      protocol: 'Unknown'  // 默认协议
+    };
+
+    let offset = 0;
+
+    // 解析以太网头 (14字节)
+    if (data.length >= 14) {
+      const ethernet = this.parseEthernetHeader(data, offset);
+      packet.layers.push(ethernet);
+      packet.protocols.push('Ethernet');
+      offset += 14;
+
+      // 根据EtherType解析上层协议
+      if (ethernet.etherType === 0x0800 && data.length >= offset + 20) {
+        // IPv4
+        const ipv4 = this.parseIPv4Header(data, offset);
+        packet.layers.push(ipv4);
+        packet.protocols.push('IPv4');
+        packet.sourceIP = ipv4.sourceIP;
+        packet.destinationIP = ipv4.destinationIP;
+        offset += ipv4.headerLength;
+
+        // 根据协议类型解析传输层
+        switch (ipv4.protocol) {
+          case 6: // TCP
+            packet.protocol = 'TCP';  // 设置主要协议
+            if (data.length >= offset + 20) {
+              const tcp = this.parseTCPHeader(data, offset);
+              packet.layers.push(tcp);
+              packet.protocols.push('TCP');
+              packet.sourcePort = tcp.sourcePort;
+              packet.destinationPort = tcp.destinationPort;
+              packet.info = `${packet.sourceIP}:${tcp.sourcePort} → ${packet.destinationIP}:${tcp.destinationPort} [TCP]`;
+              
+              // 检查是否是HTTP
+              if (tcp.destinationPort === 80 || tcp.sourcePort === 80) {
+                packet.protocols.push('HTTP');
+                packet.info += ' HTTP';
+              }
+            }
+            break;
+            
+          case 17: // UDP
+            packet.protocol = 'UDP';  // 设置主要协议
+            if (data.length >= offset + 8) {
+              const udp = this.parseUDPHeader(data, offset);
+              packet.layers.push(udp);
+              packet.protocols.push('UDP');
+              packet.sourcePort = udp.sourcePort;
+              packet.destinationPort = udp.destinationPort;
+              packet.info = `${packet.sourceIP}:${udp.sourcePort} → ${packet.destinationIP}:${udp.destinationPort} [UDP]`;
+              
+              // 检查是否是DNS
+              if (udp.destinationPort === 53 || udp.sourcePort === 53) {
+                packet.protocols.push('DNS');
+                packet.info += ' DNS';
+              }
+            }
+            break;
+            
+          case 1: // ICMP
+            packet.protocol = 'ICMP';  // 设置主要协议
+            if (data.length >= offset + 8) {
+              const icmp = this.parseICMPHeader(data, offset);
+              packet.layers.push(icmp);
+              packet.protocols.push('ICMP');
+              packet.info = `${packet.sourceIP} → ${packet.destinationIP} [ICMP] ${icmp.type === 8 ? 'Echo Request' : 'Echo Reply'}`;
+            }
+            break;
+        }
+      }
+    }
+
+    return packet;
+  }
+
+  /**
+   * 解析以太网头
+   */
+  parseEthernetHeader(data, offset) {
+    const destMac = [];
+    const srcMac = [];
+    
+    for (let i = 0; i < 6; i++) {
+      destMac.push(data.readUInt8(offset + i).toString(16).padStart(2, '0'));
+      srcMac.push(data.readUInt8(offset + 6 + i).toString(16).padStart(2, '0'));
+    }
+    
+    const etherType = data.readUInt16BE(offset + 12);
+    
+    return {
+      name: 'Ethernet',
+      destination: destMac.join(':'),
+      source: srcMac.join(':'),
+      etherType,
+      etherTypeStr: this.getEtherTypeString(etherType)
+    };
+  }
+
+  /**
+   * 解析IPv4头
+   */
+  parseIPv4Header(data, offset) {
+    const versionHeaderLength = data.readUInt8(offset);
+    const version = (versionHeaderLength >> 4) & 0xF;
+    const headerLength = (versionHeaderLength & 0xF) * 4;
+    const totalLength = data.readUInt16BE(offset + 2);
+    const protocol = data.readUInt8(offset + 9);
+    
+    const srcIP = [];
+    const destIP = [];
+    for (let i = 0; i < 4; i++) {
+      srcIP.push(data.readUInt8(offset + 12 + i));
+      destIP.push(data.readUInt8(offset + 16 + i));
+    }
+    
+    return {
+      name: 'IPv4',
+      version,
+      headerLength,
+      totalLength,
+      protocol,
+      protocolStr: this.getProtocolString(protocol),
+      sourceIP: srcIP.join('.'),
+      destinationIP: destIP.join('.')
+    };
+  }
+
+  /**
+   * 解析TCP头
+   */
+  parseTCPHeader(data, offset) {
+    const sourcePort = data.readUInt16BE(offset);
+    const destinationPort = data.readUInt16BE(offset + 2);
+    const sequenceNumber = data.readUInt32BE(offset + 4);
+    const acknowledgmentNumber = data.readUInt32BE(offset + 8);
+    const flags = data.readUInt16BE(offset + 12);
+    
+    return {
+      name: 'TCP',
+      sourcePort,
+      destinationPort,
+      sequenceNumber,
+      acknowledgmentNumber,
+      flags: this.parseTCPFlags(flags & 0x1FF)
+    };
+  }
+
+  /**
+   * 解析UDP头
+   */
+  parseUDPHeader(data, offset) {
+    const sourcePort = data.readUInt16BE(offset);
+    const destinationPort = data.readUInt16BE(offset + 2);
+    const length = data.readUInt16BE(offset + 4);
+    
+    return {
+      name: 'UDP',
+      sourcePort,
+      destinationPort,
+      length
+    };
+  }
+
+  /**
+   * 解析ICMP头
+   */
+  parseICMPHeader(data, offset) {
+    const type = data.readUInt8(offset);
+    const code = data.readUInt8(offset + 1);
+    
+    return {
+      name: 'ICMP',
+      type,
+      code,
+      typeStr: this.getICMPTypeString(type)
+    };
+  }
+
+  /**
+   * 获取EtherType字符串
+   */
+  getEtherTypeString(etherType) {
+    switch (etherType) {
+      case 0x0800: return 'IPv4';
+      case 0x0806: return 'ARP';
+      case 0x86DD: return 'IPv6';
+      default: return `Unknown (0x${etherType.toString(16)})`;
+    }
+  }
+
+  /**
+   * 获取协议字符串
+   */
+  getProtocolString(protocol) {
+    switch (protocol) {
+      case 1: return 'ICMP';
+      case 6: return 'TCP';
+      case 17: return 'UDP';
+      default: return `Unknown (${protocol})`;
+    }
+  }
+
+  /**
+   * 解析TCP标志
+   */
+  parseTCPFlags(flags) {
+    const flagNames = [];
+    if (flags & 0x01) flagNames.push('FIN');
+    if (flags & 0x02) flagNames.push('SYN');
+    if (flags & 0x04) flagNames.push('RST');
+    if (flags & 0x08) flagNames.push('PSH');
+    if (flags & 0x10) flagNames.push('ACK');
+    if (flags & 0x20) flagNames.push('URG');
+    return flagNames;
+  }
+
+  /**
+   * 获取ICMP类型字符串
+   */
+  getICMPTypeString(type) {
+    switch (type) {
+      case 0: return 'Echo Reply';
+      case 8: return 'Echo Request';
+      case 3: return 'Destination Unreachable';
+      case 11: return 'Time Exceeded';
+      default: return `Type ${type}`;
+    }
   }
 
   /**
@@ -275,6 +535,12 @@ class PcapService {
       totalBytes += packet.capturedLength;
     });
 
+    // 计算持续时间和平均数据包大小
+    const startTime = new Date(packets[0].timestamp).getTime();
+    const endTime = new Date(packets[packets.length - 1].timestamp).getTime();
+    const duration = (endTime - startTime) / 1000; // 秒
+    const averagePacketSize = totalBytes / packets.length;
+
     return {
       totalPackets: packets.length,
       totalBytes,
@@ -286,7 +552,9 @@ class PcapService {
       timeRange: packets.length > 0 ? {
         start: packets[0].timestamp,
         end: packets[packets.length - 1].timestamp
-      } : null
+      } : null,
+      duration,
+      averagePacketSize
     };
   }
 
@@ -431,6 +699,67 @@ class PcapService {
     this.sessions.delete(fileId);
 
     return { success: true, message: '文件已删除' };
+  }
+
+  /**
+   * 分析PCAP文件并返回分析结果
+   */
+  async analyzePcapFile(fileId) {
+    const session = this.sessions.get(fileId);
+    if (!session) {
+      // 如果会话不存在，尝试查找文件并解析
+      const files = fs.readdirSync(this.uploadDir);
+      const targetFile = files.find(file => file.startsWith(fileId));
+      
+      if (!targetFile) {
+        throw new Error('未找到指定的文件');
+      }
+      
+      const fileInfo = {
+        id: fileId,
+        originalName: targetFile.split('_').slice(1).join('_'),
+        fileName: targetFile,
+        filePath: path.join(this.uploadDir, targetFile),
+        size: fs.statSync(path.join(this.uploadDir, targetFile)).size,
+        uploadTime: new Date().toISOString(),
+        mimeType: 'application/octet-stream'
+      };
+      
+      // 解析文件
+      const parsedSession = await this.parsePcapFile(fileInfo);
+      return {
+        fileInfo: parsedSession.fileInfo,
+        summary: {
+          totalPackets: parsedSession.totalPackets,
+          fileSize: parsedSession.fileInfo.size,
+          protocolDistribution: parsedSession.statistics.protocolDistribution,
+          duration: parsedSession.statistics.duration,
+          averagePacketSize: parsedSession.statistics.averagePacketSize
+        },
+        packets: parsedSession.packets,
+        statistics: parsedSession.statistics
+      };
+    }
+
+    return {
+      fileInfo: session.fileInfo,
+      summary: {
+        totalPackets: session.totalPackets,
+        fileSize: session.fileInfo.size,
+        protocolDistribution: session.statistics.protocolDistribution,
+        duration: session.statistics.duration,
+        averagePacketSize: session.statistics.averagePacketSize
+      },
+      packets: session.packets,
+      statistics: session.statistics
+    };
+  }
+
+  /**
+   * 删除PCAP文件
+   */
+  async deletePcapFile(fileId) {
+    return this.deleteFile(fileId);
   }
 }
 
